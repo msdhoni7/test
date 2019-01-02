@@ -1,0 +1,56 @@
+#ARM Template using az cli
+Before the provisioning, check all dependencies, if not present create them
+
+#Select desired subscription
+az account set --subscription "sub name"
+
+1) #Resource Group check
+rg=$(az group exists -n rogerstest)
+if [ "$rg" = "true" ];
+then
+echo "The required Resource Group exits"
+else
+az group create -l "Canada East" -n rogerstest
+fi
+
+2) #Vnet check
+vnet=$(az network vnet show -g rogerstestweb -n MyVNet1)
+if [ -z "$vnet" ]
+then
+az network vnet create -g rogerstestweb -n MyVnet1 --address-prefix 10.201.0.0/16 \
+                      --subnet-name MySubnet --subnet-prefix 10.201.1.0/24
+else
+      echo "Vnet exists"
+fi
+
+3) #Subnet NSG check
+nsg=$(az network nsg show -g rogerstestweb -n MyNsg)
+if [ -z "$nsg" ]
+then
+az network nsg create -g rogerstestweb -n MyNsg
+else
+      echo "NSG exits"
+fi
+
+4) #Subnet NSG Rules check
+nsgrules=$(az network nsg show -g rogerstestweb -n MyNsg)
+if [ -z "$nsg" ]
+then
+az network nsg rule create -g rogerstestweb --nsg-name MyNsg -n MyNsgRule --priority 100 \
+--source-address-prefixes '*' --source-port-ranges 80 443  --destination-address-prefixes '*' \
+--destination-port-ranges 80 443 --access Allow  --protocol Tcp \
+--description "Allow from everywhere on ranges 80 and 443."
+else
+      echo "NSG exists"
+fi
+
+5) #subnet check
+subnet=$(az network vnet subnet show -g rogerstestweb -n weblayer1 --vnet-name MyVNet)
+if [ -z "$subnet" ]
+then
+az network vnet subnet create -g rogerstestweb --vnet-name MyVnet -n weblayer1 \
+                          --address-prefix 10.200.3.0/24 --network-security-group MyNsg
+else
+      az network vnet subnet update -g rogerstestweb -n weblayer1 \
+      --vnet-name MyVNet --network-security-group MyNsg
+fi
